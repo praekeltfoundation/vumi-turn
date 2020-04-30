@@ -163,7 +163,6 @@ class TurnTransport(HttpRpcTransport):
         except Exception, e:
             msg = "Exception: %s" % e
             log.err("Error processing request: %s" % (request,))
-            print(msg)
             self.respond(message_id, http.INTERNAL_SERVER_ERROR, {"error": msg})
 
         self.respond(message_id, http.OK, {})
