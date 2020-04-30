@@ -54,7 +54,7 @@ class TurnTransportConfig(HttpRpcTransport.CONFIG_CLASS):
 
 def get_datetime(turn_timestamp):
     if turn_timestamp:
-        return datetime.fromtimestamp(turn_timestamp)
+        return datetime.fromtimestamp(int(turn_timestamp))
     else:
         return ''
 
@@ -101,7 +101,9 @@ class TurnTransport(HttpRpcTransport):
         try:
             # TODO: validate HMAC secret
 
-            for message in request.args.get("messages", []):
+            payload = json.loads(request.content.read())
+
+            for message in payload.get("messages", []):
                 content = ''
                 metadata = {}
                 if message['type'] == 'text':
@@ -112,17 +114,18 @@ class TurnTransport(HttpRpcTransport):
 
                 yield self.publish_message(
                     transport_name='turn',
-                    transport_type='sms',
+                    transport_type='whatsapp',
                     message_id=message["id"],
                     transport_metadata=metadata,
                     to_addr=format_msisdn_for_whatsapp(self.config['to_addr']),
                     from_addr=format_msisdn_for_whatsapp(message['from']),
+                    from_addr_type='msisdn',
                     content=content,
                     timestamp= get_datetime(message["timestamp"]),
                     )
                 log.msg("Inbound Enqueued.")
 
-            for event in request.args.get("statuses", []):
+            for event in payload.get("statuses", []):
                 if event["status"] == 'sent':
                     delivery_status = 'pending'
                 elif event["status"] == 'failed':
@@ -157,6 +160,13 @@ class TurnTransport(HttpRpcTransport):
             self.respond(message_id, http.INTERNAL_SERVER_ERROR, {"error": msg})
 
         self.respond(message_id, http.OK, {})
+
+        yield self.add_status(
+            component='inbound',
+            status='ok',
+            type='request_success',
+            message='Request successful')
+
 
     @inlineCallbacks
     def handle_outbound_message(self, message):

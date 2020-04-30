@@ -1,6 +1,7 @@
 import json
 from urllib import urlencode
 from urlparse import urljoin
+from datetime import datetime
 
 from twisted.web import http
 from twisted.internet import reactor
@@ -110,6 +111,129 @@ class TestTurnTransport(VumiTestCase):
         })
 
         self.assert_uri(req['uri'], transport.config['web_path'], params)
+
+    def mk_post_request(self, transport, messages=[], statuses= []):
+        return treq.post(
+            transport.get_transport_url('/api/v1/turn/'),
+            json.dumps({
+                'messages': messages,
+                'statuses': statuses
+            }).encode('ascii'),
+            # headers={
+            #     'User-Agent': ['Vumi Turn Transport'],
+            #     'Content-Type': ['application/json'],
+            #     'Authorization': ['Bearer {}'.format(self.config['token'])],
+            # },
+        )
+
+    @inlineCallbacks
+    def test_inbound_text(self):
+        transport = yield self.mk_transport()
+
+        res = yield self.mk_post_request(transport, messages=[{
+            'type': 'text',
+            'text': {'body': 'hi'},
+            'id': '123a123',
+            'from': '+272222',
+            'timestamp': '1588244814'
+        }])
+
+        self.assertEqual(res.code, http.OK)
+
+        [msg] = yield self.tx_helper.wait_for_dispatched_inbound(1)
+
+        self.assert_contains_items(msg, {
+            'from_addr': '272222',
+            'from_addr_type': 'msisdn',
+            'to_addr': '271234',
+            'content': 'hi',
+            'transport_metadata': {},
+            'transport_name': 'turn',
+            'transport_type': 'whatsapp',
+            'message_id': '123a123',
+            'timestamp': datetime.fromtimestamp(1588244814)
+        })
+
+        [status] = self.tx_helper.get_dispatched_statuses()
+
+        self.assert_contains_items(status, {
+            'status': 'ok',
+            'component': 'inbound',
+            'type': 'request_success',
+            'message': 'Request successful',
+        })
+
+    @inlineCallbacks
+    def test_inbound_location(self):
+        transport = yield self.mk_transport()
+
+        res = yield self.mk_post_request(transport, messages=[{
+            'type': 'location',
+            'location': {
+                'latitude': 123,
+                'longitude': 123
+            },
+            'id': '123a123',
+            'from': '+272222',
+            'timestamp': '1588244814'
+        }])
+
+        self.assertEqual(res.code, http.OK)
+
+        [msg] = yield self.tx_helper.wait_for_dispatched_inbound(1)
+
+        self.assert_contains_items(msg, {
+            'from_addr': '272222',
+            'from_addr_type': 'msisdn',
+            'to_addr': '271234',
+            'content': '',
+            'transport_metadata': {'location': 'geo:123,123'},
+            'transport_name': 'turn',
+            'transport_type': 'whatsapp',
+            'message_id': '123a123',
+            'timestamp': datetime.fromtimestamp(1588244814)
+        })
+
+        [status] = self.tx_helper.get_dispatched_statuses()
+
+        self.assert_contains_items(status, {
+            'status': 'ok',
+            'component': 'inbound',
+            'type': 'request_success',
+            'message': 'Request successful',
+        })
+
+    @inlineCallbacks
+    def test_inbound_status(self):
+        transport = yield self.mk_transport()
+
+        res = yield self.mk_post_request(transport, statuses=[{
+            'status': 'sent',
+            'id': '123a123',
+            'recipient_id': '+272222',
+            'timestamp': '1588244814'
+        }])
+
+        self.assertEqual(res.code, http.OK)
+
+        [msg] = yield self.tx_helper.wait_for_dispatched_events(1)
+
+        self.assert_contains_items(msg, {
+            'user_message_id': '123a123',
+            'delivery_status': 'pending',
+            'transport_metadata': {'delivery_status': 'sent'},
+            'to_addr': '272222',
+            'timestamp': datetime.fromtimestamp(1588244814)
+        })
+
+        [status] = self.tx_helper.get_dispatched_statuses()
+
+        self.assert_contains_items(status, {
+            'status': 'ok',
+            'component': 'inbound',
+            'type': 'request_success',
+            'message': 'Request successful',
+        })
 
     @inlineCallbacks
     def test_outbound_success(self):
