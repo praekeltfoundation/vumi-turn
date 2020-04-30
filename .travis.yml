@@ -10,13 +10,9 @@ before_install:
   - if [ ! -z "$PYPY_VERSION" ]; then source utils/setup-pypy-travis.sh; fi
 install:
   - "pip install -r requirements.txt"
-  - "pip install coveralls"
 sudo: false
 script:
-  - if [ -z "$NO_COVERAGE" ]; then COVERAGE_CMD="coverage run --source=vxturn"; else COVERAGE_CMD=""; fi
-  - $COVERAGE_CMD `which trial` vxturn
-after_success:
-  - if [ -z "$NO_COVERAGE" ]; then coveralls; fi
+  - `which trial` vxturn
 deploy:
   provider: pypi
   user: Praekelt
