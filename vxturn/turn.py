@@ -13,6 +13,7 @@ from twisted.web._newclient import ResponseNeverReceived
 
 from vumi.config import ConfigText, ConfigInt
 from vumi.transports.httprpc import HttpRpcTransport
+from Crypto.Hash import HMAC
 
 
 class TurnTransportConfig(HttpRpcTransport.CONFIG_CLASS):
@@ -83,13 +84,29 @@ class TurnTransport(HttpRpcTransport):
 
         return json.dumps(params).encode('ascii')
 
+    def verify_signature(self, content, signature, secret):
+        h = HMAC.new(secret)
+        h.update(content)
+        return h.hexdigest() == signature
 
     @inlineCallbacks
     def handle_raw_inbound_message(self, message_id, request):
         try:
-            # TODO: validate HMAC secret
+            content = request.content.read()
+            headers = request.requestHeaders
+            try:
+                signature = headers.getRawHeaders('http_x_turn_hook_signature')[0]
 
-            payload = json.loads(request.content.read())
+                if not self.verify_signature(content, signature, self.config['hmac_secret']):
+                    msg = "Invalid HMAC secret"
+                    log.msg('Returning %s: %s' % (http.UNAUTHORIZED, msg))
+                    self.respond(message_id, http.UNAUTHORIZED, {"error": msg})
+            except:
+                msg = "Missing HMAC signature header"
+                log.msg('Returning %s: %s' % (http.BAD_REQUEST, msg))
+                self.respond(message_id, http.BAD_REQUEST, {"error": msg})
+
+            payload = json.loads(content)
 
             for message in payload.get("messages", []):
                 content = ''
@@ -144,7 +161,9 @@ class TurnTransport(HttpRpcTransport):
             log.msg('Returning %s: %s' % (http.BAD_REQUEST, msg))
             self.respond(message_id, http.BAD_REQUEST, {"error": msg})
         except Exception, e:
+            msg = "Exception: %s" % e
             log.err("Error processing request: %s" % (request,))
+            print(msg)
             self.respond(message_id, http.INTERNAL_SERVER_ERROR, {"error": msg})
 
         self.respond(message_id, http.OK, {})

@@ -2,6 +2,7 @@ import json
 from urllib import urlencode
 from urlparse import urljoin
 from datetime import datetime
+from Crypto.Hash import HMAC
 
 from twisted.web import http
 from twisted.internet import reactor
@@ -86,19 +87,59 @@ class TestTurnTransport(VumiTestCase):
         for name, value in items.iteritems():
             self.assertEqual(obj[name], value)
 
-    def mk_post_request(self, transport, messages=[], statuses= []):
+    def mk_post_request(self, transport, messages=[], statuses= [], headers=None):
+        body = {
+            'messages': messages,
+            'statuses': statuses
+        }
+        if headers:
+            post_headers = headers
+        else:
+            h = HMAC.new('test-hmac-secret')
+            h.update(json.dumps(body))
+            post_headers = {
+                'HTTP_X_TURN_HOOK_SIGNATURE': [h.hexdigest()],
+            }
+
         return treq.post(
             transport.get_transport_url('/api/v1/turn/'),
-            json.dumps({
-                'messages': messages,
-                'statuses': statuses
-            }).encode('ascii'),
-            # headers={
-            #     'User-Agent': ['Vumi Turn Transport'],
-            #     'Content-Type': ['application/json'],
-            #     'Authorization': ['Bearer {}'.format(self.config['token'])],
-            # },
+            json.dumps(body).encode('ascii'),
+            headers=post_headers,
         )
+
+    @inlineCallbacks
+    def test_inbound_missing_hmac(self):
+        transport = yield self.mk_transport()
+
+        res = yield self.mk_post_request(transport, messages=[{
+            'type': 'text',
+            'text': {'body': 'hi'},
+            'id': '123a123',
+            'from': '+272222',
+            'timestamp': '1588244814'
+        }],
+        headers={'test': ['value']})
+
+        self.assertEqual(res.code, http.BAD_REQUEST)
+        json = yield res.json()
+        self.assertEqual(json['error'], 'Missing HMAC signature header')
+
+    @inlineCallbacks
+    def test_inbound_invalid_hmac(self):
+        transport = yield self.mk_transport()
+
+        res = yield self.mk_post_request(transport, messages=[{
+            'type': 'text',
+            'text': {'body': 'hi'},
+            'id': '123a123',
+            'from': '+272222',
+            'timestamp': '1588244814'
+        }],
+        headers={'HTTP_X_TURN_HOOK_SIGNATURE': ['value']})
+
+        self.assertEqual(res.code, http.UNAUTHORIZED)
+        json = yield res.json()
+        self.assertEqual(json['error'], 'Invalid HMAC secret')
 
     @inlineCallbacks
     def test_inbound_text(self):

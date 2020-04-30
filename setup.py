@@ -15,7 +15,7 @@ setup(
         'attrs==19.2.0',
         'vumi==0.6.18',
         'treq',
-        'hmac'
+        'pycrypto'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
