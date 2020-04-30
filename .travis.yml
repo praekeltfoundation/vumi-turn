@@ -3,7 +3,6 @@ python:
   - "2.7"
 matrix:
   include:
-    # Test on pypy without coverage, because it's unnecessary and very slow.
     - python: "2.7"
 install:
   - "pip install -r requirements.txt"
