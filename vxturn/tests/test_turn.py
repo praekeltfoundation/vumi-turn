@@ -1,5 +1,4 @@
 import json
-from urllib import urlencode
 from urlparse import urljoin
 from datetime import datetime
 from Crypto.Hash import HMAC
@@ -9,7 +8,6 @@ from twisted.internet import reactor
 from twisted.internet.task import Clock
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
 from twisted.web.client import HTTPConnectionPool
-from twisted.web.server import NOT_DONE_YET
 
 import treq
 
@@ -18,6 +16,7 @@ from vumi.transports.httprpc.tests.helpers import HttpRpcTransportHelper
 from vumi.tests.utils import MockHttpServer
 
 from vxturn.turn import TurnTransport
+
 
 class TestTurnTransport(VumiTestCase):
     @inlineCallbacks
@@ -87,7 +86,7 @@ class TestTurnTransport(VumiTestCase):
         for name, value in items.iteritems():
             self.assertEqual(obj[name], value)
 
-    def mk_post_request(self, transport, messages=[], statuses= [], headers=None):
+    def mk_post_request(self, transport, messages=[], statuses=[], headers=None):
         body = {
             'messages': messages,
             'statuses': statuses
@@ -117,8 +116,8 @@ class TestTurnTransport(VumiTestCase):
             'id': '123a123',
             'from': '+272222',
             'timestamp': '1588244814'
-        }],
-        headers={'test': ['value']})
+            }],
+            headers={'test': ['value']})
 
         self.assertEqual(res.code, http.BAD_REQUEST)
         json = yield res.json()
@@ -134,8 +133,8 @@ class TestTurnTransport(VumiTestCase):
             'id': '123a123',
             'from': '+272222',
             'timestamp': '1588244814'
-        }],
-        headers={'HTTP_X_TURN_HOOK_SIGNATURE': ['value']})
+            }],
+            headers={'HTTP_X_TURN_HOOK_SIGNATURE': ['value']})
 
         self.assertEqual(res.code, http.UNAUTHORIZED)
         json = yield res.json()
