@@ -2,7 +2,7 @@
 Turn HTTP WhatsApp API.
 """
 
-from vumi.transports.turn.turn import TurnTransport
+from vxturn.turn import TurnTransport
 
-__version__ = "0.7.2"
+__version__ = "0.0.1"
 __all__ = ['TurnTransport']

@@ -6,7 +6,7 @@ setup(
     url='http://github.com/praekelt/vumi-turn',
     license='BSD',
     description="A Vumi WhatsApp transport for Turn.",
-    long_description=open('README.rst', 'r').read(),
+    long_description=open('README.md', 'r').read(),
     author='Praekelt Foundation',
     author_email='dev@praekeltfoundation.org',
     packages=find_packages(),
