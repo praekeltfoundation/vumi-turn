@@ -7,14 +7,13 @@ from twisted.web import http
 from twisted.internet import reactor
 from twisted.internet.task import Clock
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
-from twisted.web.client import HTTPConnectionPool, readBody
+from twisted.web.client import HTTPConnectionPool
 from twisted.web.server import NOT_DONE_YET
 
 import treq
 
 from vumi.tests.helpers import VumiTestCase
 from vumi.transports.httprpc.tests.helpers import HttpRpcTransportHelper
-from vumi.tests.utils import LogCatcher
 from vumi.tests.utils import MockHttpServer
 
 from vxturn.turn import TurnTransport
@@ -83,34 +82,9 @@ class TestTurnTransport(VumiTestCase):
     def remote_handle_request(self, req):
         return self.remote_request_handler(req)
 
-    def get_host(self, transport):
-        addr = transport.web_resource.getHost()
-        return '%s:%s' % (addr.host, addr.port)
-
     def assert_contains_items(self, obj, items):
         for name, value in items.iteritems():
             self.assertEqual(obj[name], value)
-
-    def assert_uri(self, actual_uri, path, params):
-        actual_path, actual_params = actual_uri.split('?')
-        self.assertEqual(actual_path, path)
-
-        self.assertEqual(
-            sorted(actual_params.split('&')),
-            sorted(urlencode(params).split('&')))
-
-    def assert_request_params(self, transport, req, params):
-        self.assert_contains_items(req, {
-            'method': 'POST',
-            'path': transport.config['web_path'],
-            'content': '',
-            'headers': {
-                'Connection': ['close'],
-                'Host': [self.get_host(transport)]
-            }
-        })
-
-        self.assert_uri(req['uri'], transport.config['web_path'], params)
 
     def mk_post_request(self, transport, messages=[], statuses= []):
         return treq.post(

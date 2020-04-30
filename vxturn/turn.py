@@ -1,28 +1,16 @@
 # -*- test-case-name: vumi.transports.turn.tests.test_turn -*-
 # -*- encoding: utf-8 -*-
 
-from urllib import urlencode
 from datetime import datetime
 import json
-import string
-import warnings
 import treq
-from StringIO import StringIO
 
 from twisted.web import http
-from twisted.web.resource import Resource
-from twisted.web.server import NOT_DONE_YET
 from twisted.python import log
 from twisted.internet.defer import inlineCallbacks, CancelledError
-from twisted.internet.protocol import Protocol
 from twisted.internet.error import ConnectingCancelledError
 from twisted.web._newclient import ResponseNeverReceived
 
-
-from vumi.utils import http_request_full, LogFilterSite
-from vumi.transports.base import Transport
-from vumi.transports.failures import TemporaryFailure, PermanentFailure
-from vumi.errors import VumiError
 from vumi.config import ConfigText, ConfigInt
 from vumi.transports.httprpc import HttpRpcTransport
 
@@ -189,6 +177,10 @@ class TurnTransport(HttpRpcTransport):
             yield self.handle_outbound_success(message)
         else:
             yield self.handle_outbound_fail(message, content)
+
+    def emit(self, log):
+        if self.get_static_config().noisy:
+            self.log.info(log)
 
     @inlineCallbacks
     def handle_send_timeout(self, message):
