@@ -12,6 +12,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'cryptography==1.5.1',
         'vumi==0.6.18',
         'treq',
     ],
