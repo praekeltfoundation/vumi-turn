@@ -97,7 +97,7 @@ class TestTurnTransport(VumiTestCase):
             h = HMAC.new('test-hmac-secret')
             h.update(json.dumps(body))
             post_headers = {
-                'X_TURN_HOOK_SIGNATURE': [h.hexdigest()],
+                'X-TURN-HOOK-SIGNATURE': [h.hexdigest()],
             }
 
         return treq.post(
@@ -134,7 +134,7 @@ class TestTurnTransport(VumiTestCase):
             'from': '+272222',
             'timestamp': '1588244814'
             }],
-            headers={'X_TURN_HOOK_SIGNATURE': ['value']})
+            headers={'X-TURN-HOOK-SIGNATURE': ['value']})
 
         self.assertEqual(res.code, http.UNAUTHORIZED)
         json = yield res.json()

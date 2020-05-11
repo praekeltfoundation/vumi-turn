@@ -95,7 +95,7 @@ class TurnTransport(HttpRpcTransport):
             content = request.content.read()
             headers = request.requestHeaders
             try:
-                signature = headers.getRawHeaders('x_turn_hook_signature')[0]
+                signature = headers.getRawHeaders('x-turn-hook-signature')[0]
 
                 if not self.verify_signature(content, signature, self.config['hmac_secret']):
                     msg = "Invalid HMAC secret"
