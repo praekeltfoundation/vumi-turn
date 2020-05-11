@@ -6,8 +6,10 @@ matrix:
     - python: "2.7"
 install:
   - "pip install -r requirements.txt"
+  - "pip install -r requirements-dev.txt"
 sudo: false
 script:
+  - flake8
   - "`which trial` vxturn"
 deploy:
   provider: pypi

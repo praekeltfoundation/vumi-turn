@@ -13,6 +13,7 @@ from twisted.web._newclient import ResponseNeverReceived
 
 from vumi.config import ConfigText, ConfigInt
 from vumi.transports.httprpc import HttpRpcTransport
+from Crypto.Hash import HMAC
 
 
 class TurnTransportConfig(HttpRpcTransport.CONFIG_CLASS):
@@ -83,13 +84,29 @@ class TurnTransport(HttpRpcTransport):
 
         return json.dumps(params).encode('ascii')
 
+    def verify_signature(self, content, signature, secret):
+        h = HMAC.new(secret)
+        h.update(content)
+        return h.hexdigest() == signature
 
     @inlineCallbacks
     def handle_raw_inbound_message(self, message_id, request):
         try:
-            # TODO: validate HMAC secret
+            content = request.content.read()
+            headers = request.requestHeaders
+            try:
+                signature = headers.getRawHeaders('x-turn-hook-signature')[0]
 
-            payload = json.loads(request.content.read())
+                if not self.verify_signature(content, signature, self.config['hmac_secret']):
+                    msg = "Invalid HMAC secret"
+                    log.msg('Returning %s: %s' % (http.UNAUTHORIZED, msg))
+                    self.respond(message_id, http.UNAUTHORIZED, {"error": msg})
+            except Exception, e:
+                msg = "Missing HMAC signature header"
+                log.msg('Returning %s: %s' % (http.BAD_REQUEST, msg))
+                self.respond(message_id, http.BAD_REQUEST, {"error": msg})
+
+            payload = json.loads(content)
 
             for message in payload.get("messages", []):
                 content = ''
@@ -109,7 +126,7 @@ class TurnTransport(HttpRpcTransport):
                     from_addr=format_msisdn_for_whatsapp(message['from']),
                     from_addr_type='msisdn',
                     content=content,
-                    timestamp= get_datetime(message["timestamp"]),
+                    timestamp=get_datetime(message["timestamp"]),
                     )
                 log.msg("Inbound Enqueued.")
 
@@ -118,7 +135,7 @@ class TurnTransport(HttpRpcTransport):
                     delivery_status = 'pending'
                 elif event["status"] == 'failed':
                     delivery_status = 'failed'
-                elif status in ['delivered', 'read']:
+                elif event["status"] in ['delivered', 'read']:
                     delivery_status = 'delivered'
                 else:
                     continue
@@ -144,6 +161,7 @@ class TurnTransport(HttpRpcTransport):
             log.msg('Returning %s: %s' % (http.BAD_REQUEST, msg))
             self.respond(message_id, http.BAD_REQUEST, {"error": msg})
         except Exception, e:
+            msg = "Exception: %s" % e
             log.err("Error processing request: %s" % (request,))
             self.respond(message_id, http.INTERNAL_SERVER_ERROR, {"error": msg})
 
@@ -154,7 +172,6 @@ class TurnTransport(HttpRpcTransport):
             status='ok',
             type='request_success',
             message='Request successful')
-
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -222,4 +239,3 @@ class TurnTransport(HttpRpcTransport):
             status='down',
             type="request_failed",
             message=status)
-
